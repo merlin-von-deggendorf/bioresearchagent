@@ -403,5 +403,181 @@ class Gwasapi:
         response.raise_for_status()
         return response.json()
 
+    def get_loci(self, association_id):
+        """
+        Fetch all loci for an association from the GWAS Catalog API.
+        Returns the JSON response as a Python dict.
+        """
+        url = f"https://www.ebi.ac.uk/gwas/rest/api/v2/associations/{association_id}/loci"
+        headers = {"accept": "application/json"}
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+        return response.json()
 
-    
+    def get_locus(self, association_id, locus_id):
+        """
+        Fetch a single locus for an association from the GWAS Catalog API.
+        Returns the JSON response as a Python dict.
+        """
+        url = f"https://www.ebi.ac.uk/gwas/rest/api/v2/associations/{association_id}/loci/{locus_id}"
+        headers = {"accept": "application/json"}
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+        return response.json()
+
+    def get_body_of_works(
+        self,
+        title=None,
+        first_author=None,
+        page=None,
+        size=None,
+        sort=None
+    ):
+        """
+        Fetch all body of works from the GWAS Catalog API.
+        Only parameters with non-None values are sent as query parameters.
+        Returns the JSON response as a Python dict.
+        """
+        url = "https://www.ebi.ac.uk/gwas/rest/api/v2/body-of-works"
+        headers = {"accept": "application/json"}
+        params = {}
+        if title is not None:
+            params["title"] = title
+        if first_author is not None:
+            params["firstAuthor"] = first_author
+        if page is not None:
+            params["page"] = page
+        if size is not None:
+            params["size"] = size
+        if sort is not None:
+            params["sort"] = sort
+
+        response = requests.get(url, headers=headers, params=params)
+        response.raise_for_status()
+        return response.json()
+
+    def get_body_of_work(self, bow_id):
+        """
+        Fetch a single body of work from the GWAS Catalog API by bow_id.
+        Returns the JSON response as a Python dict.
+        """
+        url = f"https://www.ebi.ac.uk/gwas/rest/api/v2/body-of-works/{bow_id}"
+        headers = {"accept": "application/json"}
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+        return response.json()
+
+    def get_unpublished_studies_for_body_of_work(
+        self,
+        bow_id,
+        page=None,
+        size=None,
+        sort=None
+    ):
+        """
+        Fetch all unpublished studies for a body of work from the GWAS Catalog API.
+        Only parameters with non-None values are sent as query parameters.
+        Returns the JSON response as a Python dict.
+        """
+        url = f"https://www.ebi.ac.uk/gwas/rest/api/v2/body-of-works/{bow_id}/unpublished-studies"
+        headers = {"accept": "application/json"}
+        params = {}
+        if page is not None:
+            params["page"] = page
+        if size is not None:
+            params["size"] = size
+        if sort is not None:
+            params["sort"] = sort
+
+        response = requests.get(url, headers=headers, params=params)
+        response.raise_for_status()
+        return response.json()
+
+    def get_unpublished_studies(
+        self,
+        disease_trait=None,
+        accession_id=None,
+        title=None,
+        first_author=None,
+        cohort=None,
+        sort=None,
+        direction=None,
+        page=None,
+        size=None
+    ):
+        """
+        Fetch all unpublished studies from the GWAS Catalog API.
+        Only parameters with non-None values are sent as query parameters.
+        Returns the JSON response as a Python dict.
+        """
+        url = "https://www.ebi.ac.uk/gwas/rest/api/v2/unpublished-studies"
+        headers = {"accept": "application/json"}
+        params = {}
+        if disease_trait is not None:
+            params["diseaseTrait"] = disease_trait
+        if accession_id is not None:
+            params["accessionId"] = accession_id
+        if title is not None:
+            params["title"] = title
+        if first_author is not None:
+            params["firstAuthor"] = first_author
+        if cohort is not None:
+            params["cohort"] = cohort
+        if sort is not None:
+            params["sort"] = sort
+        if direction is not None:
+            params["direction"] = direction
+        if page is not None:
+            params["page"] = page
+        if size is not None:
+            params["size"] = size
+
+        response = requests.get(url, headers=headers, params=params)
+        response.raise_for_status()
+        return response.json()
+
+    def get_unpublished_study(self, accession_id):
+        """
+        Fetch a single unpublished study from the GWAS Catalog API by accession_id.
+        Returns the JSON response as a Python dict.
+        """
+        url = f"https://www.ebi.ac.uk/gwas/rest/api/v2/unpublished-studies/{accession_id}"
+        headers = {"accept": "application/json"}
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+        return response.json()
+
+    def get_unpublished_ancestries(
+        self,
+        accession_id,
+        sort=None,
+        direction=None
+    ):
+        """
+        Fetch all unpublished ancestries for an unpublished study from the GWAS Catalog API.
+        Returns the JSON response as a Python dict.
+        """
+        url = f"https://www.ebi.ac.uk/gwas/rest/api/v2/unpublished-studies/{accession_id}/unpublished-ancestries"
+        headers = {"accept": "application/json"}
+        params = {}
+        if sort is not None:
+            params["sort"] = sort
+        if direction is not None:
+            params["direction"] = direction
+
+        response = requests.get(url, headers=headers, params=params)
+        response.raise_for_status()
+        return response.json()
+
+    def get_unpublished_ancestry(self, accession_id, ancestry_id):
+        """
+        Fetch a single unpublished ancestry for an unpublished study from the GWAS Catalog API.
+        Returns the JSON response as a Python dict.
+        """
+        url = f"https://www.ebi.ac.uk/gwas/rest/api/v2/unpublished-studies/{accession_id}/unpublished-ancestries/{ancestry_id}"
+        headers = {"accept": "application/json"}
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+        return response.json()
+
+
