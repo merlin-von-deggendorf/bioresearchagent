@@ -1,0 +1,11 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "biora"
+version = "1"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["gwascat*","tools*"]
