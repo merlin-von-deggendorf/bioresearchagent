@@ -8,4 +8,4 @@ version = "1"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["gwascat*","aiprogrammer*"]
+include = ["gwascat*","expatlas*","pmcapi*"]
