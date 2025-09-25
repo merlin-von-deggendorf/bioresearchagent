@@ -1,71 +1,115 @@
+#!/usr/bin/env python3
+import os
 import requests
 from xml.etree import ElementTree as ET
+from bs4 import BeautifulSoup
+from bs4.element import Tag
+from typing import List, Optional
+
+
+class Article:
+    def __init__(self, tag: Tag):
+        self._tag = tag
+        self.pmcid = self._text_of(tag.find("article-id", attrs={"pub-id-type": "pmc"}))
+        self.title = self._text_of(tag.find("article-title"))
+        abstracts = tag.find_all("abstract")
+        self.abstract = "\n\n".join(self._text_of(a) for a in abstracts) if abstracts else ""
+        body = tag.find("body")
+        self.body = body.get_text("\n\n", strip=True) if isinstance(body, Tag) else ""
+
+    def _text_of(self, node, sep: str = " ") -> str:
+        if node is None:
+            return ""
+        if isinstance(node, Tag):
+            # pass separator positionally to avoid keyword differences across BS4 versions
+            return node.get_text(sep, strip=True)
+        return str(node).strip()
+
+    @property
+    def has_abstract(self) -> bool:
+        return bool(self.abstract)
+
+    @property
+    def has_body(self) -> bool:
+        return bool(self.body)
+
+    def save(self, directory: str = ".") -> str:
+        os.makedirs(directory, exist_ok=True)
+        safe_id = self.pmcid or "unknown"
+        filename = os.path.join(directory, f"PMC{safe_id}.txt")
+        with open(filename, "w", encoding="utf-8") as f:
+            if self.title:
+                f.write(self.title + "\n\n")
+            if self.abstract:
+                f.write("Abstract:\n" + self.abstract + "\n\n")
+            if self.body:
+                f.write("Body:\n" + self.body + "\n")
+        return filename
+
 
 class PMCSearch:
-    BASE_URL = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
+    ES_URL = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
+    EF_URL = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
 
-    def __init__(self, api_key: str | None = None):
+    def __init__(self, api_key: Optional[str] = None):
         self.api_key = api_key
 
-    def search(self, query: str, retmax: int = 20, retstart: int = 0, sort: str | None = None, use_history: bool = False):
-        """
-        Search PMC for a query.
-        Returns a dict with:
-            - 'ids': list of PMCIDs
-            - 'count': total results
-            - 'webenv': WebEnv (if use_history=True)
-            - 'query_key': QueryKey (if use_history=True)
-        """
-        params = {
-            "db": "pmc",
-            "term": query,
-            "retmax": retmax,
-            "retstart": retstart,
-        }
-        if sort:
-            params["sort"] = sort
-        if use_history:
-            params["usehistory"] = "y"
+    def search(self, query: str, retmax: int = 20, retstart: int = 0):
+        params = {"db": "pmc", "term": query, "retmax": retmax, "retstart": retstart}
         if self.api_key:
             params["api_key"] = self.api_key
-
-        r = requests.get(self.BASE_URL, params=params)
+        r = requests.get(self.ES_URL, params=params)
         r.raise_for_status()
         root = ET.fromstring(r.text)
-
-        ids = [id_elem.text for id_elem in root.findall(".//Id")]
+        ids = [id_.text for id_ in root.findall(".//Id")]
         count = int(root.findtext("Count", "0"))
+        return ids, count
 
-        result = {"ids": ids, "count": count}
-        if use_history:
-            result["webenv"] = root.findtext("WebEnv")
-            result["query_key"] = root.findtext("QueryKey")
-
-        return result
-
-    def fetch_all(self, query: str, batch_size: int = 20, sort: str | None = None):
-        """
-        Generator to fetch all PMCIDs for a query, using paging automatically.
-        """
+    def fetch_all_ids(self, query: str, batch_size: int = 20):
         retstart = 0
         while True:
-            res = self.search(query, retmax=batch_size, retstart=retstart, sort=sort)
-            ids = res["ids"]
+            ids, count = self.search(query, retmax=batch_size, retstart=retstart)
             if not ids:
                 break
             yield from ids
             retstart += len(ids)
-            if retstart >= res["count"]:
+            if retstart >= count:
                 break
 
-# Example usage
-if __name__ == "__main__":
-    api_key = None  # or your API key as a string
-    api = PMCSearch(api_key)
+    def fetch_articles(self, ids: List[str]) -> List[Article]:
+        if not ids:
+            return []
+        params = {"db": "pmc", "id": ",".join(ids), "rettype": "xml", "retmode": "xml"}
+        if self.api_key:
+            params["api_key"] = self.api_key
+        r = requests.get(self.EF_URL, params=params)
+        r.raise_for_status()
+        soup = BeautifulSoup(r.text, "lxml-xml")
+        return [Article(a) for a in soup.find_all("article")]
 
-    print("\nFetching all results in batches of 10000:")
-    cntr = 0
-    for pmcid in api.fetch_all("CRISPR[Title/Abstract] AND 2022:2025[pdat]", batch_size=10000):
-        print(f"PMC{pmcid}")
-        cntr += 1
-    print(f"Total fetched: {cntr}")
+
+if __name__ == "__main__":
+    # requires: pip install beautifulsoup4 lxml requests
+    api = PMCSearch(api_key=None)  # set API key if you have one
+    # collect a few IDs
+    ids = []
+    for pmcid in api.fetch_all_ids("CRISPR[Title/Abstract] AND 2022:2025[pdat]", batch_size=5):
+        ids.append(pmcid)
+        if len(ids) >= 5:
+            break
+
+    if not ids:
+        print("No IDs found.")
+        raise SystemExit(0)
+
+    articles = api.fetch_articles(ids)
+    for art in articles:
+        print(f"PMC{art.pmcid}: {art.title or '<no title>'}")
+        if art.has_abstract:
+            print("  ABSTRACT:", art.abstract[:200].replace("\n", " "), "...")
+        else:
+            print("  ABSTRACT: <none>")
+        if art.has_body:
+            print("  BODY:    ", art.body[:200].replace("\n", " "), "...")
+        else:
+            print("  BODY:    <none>")
